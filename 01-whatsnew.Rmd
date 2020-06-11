@@ -1,0 +1,74 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+There are some cool new features in RStudio, like real-time spell checking.
+
+```{r}
+library(tidyverse)
+library(tidyquant)
+
+# Spell checking will work on text and comments, but not your code.
+tq_get("SPY", "stock.prices") %>% 
+  select(date, adjusted)
+```
+
+```{python}
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Read our ETF data from a CSV file
+stocks = pd.read_csv('https://colorado.rstudio.com/rsc/content/1255')
+stocks.head()
+
+stocks.index = pd.to_datetime(stocks['date'], format='%Y-%m-%d')
+
+spy = stocks.loc[:,'SPY']
+
+short_rolling_spy = spy.rolling(window=20).mean()
+long_rolling_spy = spy.rolling(window=100).mean()
+```
+
+
+```{r}
+library(ggplot2)
+library(reticulate)
+
+py$stocks %>% 
+  mutate(date = as.Date(date)) %>% 
+  pivot_longer(-date, "stock") %>% 
+  ggplot(aes(x = date, y = value, group = stock, color = stock)) +
+  geom_line() +
+  scale_x_date(date_breaks = "years")
+```
+
+
+## Pins
+
+```{r}
+symbols <- c("AAPL", "NFLX", "TSLA", "GOOG")
+weights <- c(.3, .3, .15, .25)
+
+tech_returns <- tq_get(symbols, "stock.prices") %>% 
+  group_by(symbol) %>% 
+  tq_transmute(adjusted, periodReturn, period = "daily", col_rename = "returns")
+
+portfolio_returns <- 
+  tech_returns %>% 
+  tq_portfolio(assets_col = symbol, 
+               returns_col = returns, 
+               weights = weights,
+               col_rename = "returns") %>% 
+  mutate(cumulative_returns = cumprod(1 + returns))
+
+portfolio_returns
+```
+
+```{r}
+library(pins)
+
+board_register_rsconnect(name="rsconnect", server="https://colorado.rstudio.com/rsc/", key = Sys.getenv("rsc-api"))
+
+pin(portfolio_returns, "tech-stock-returns", board = "rsconnect", description = "Daily returns for a portfolio of 4 tech stocks (AAPL, TSLA, GOOG, NFLX")
+```
